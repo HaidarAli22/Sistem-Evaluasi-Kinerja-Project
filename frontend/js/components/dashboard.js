@@ -304,12 +304,15 @@ export async function updateCharts() {
 
         const [statsRes, compositeRes, distribusiRes, monthlyTrendRes, areasRes] = responses;
 
+        // Cek filter range
+        const currentFilters = AppState.getState('dashboardFilters') || { dateFrom: '', dateTo: '' };
+        const dateFrom = currentFilters.dateFrom || '';
+        const dateTo = currentFilters.dateTo || '';
+        const hasFilterRange = Boolean(dateFrom && dateTo);
 
-
-
-        // Stats cards
-
-        if (statsRes && statsRes.data) renderStats(statsRes.data);
+        // Stats cards - hanya tampilkan jika ada filter range
+        if (hasFilterRange && statsRes && statsRes.data) renderStats(statsRes.data);
+        else if (!hasFilterRange) clearStats();
 
             // Bar Chart: Skor Komposit per Karyawan
         if (chartKPI && compositeRes && compositeRes.data) {
@@ -331,95 +334,56 @@ export async function updateCharts() {
                     borderSkipped: false
                 }];
                 chartKPI.update('none');
-                return;
-            }
-
-
-            const karyawans = Array.isArray(compositeRes.data) ? compositeRes.data : [];
-
-            if (karyawans.length > 0) {
-                chartKPI.data.labels = karyawans.map(d => d.nama);
-                const skorArr = karyawans.map(d => {
-                    const v = parseFloat(d.skor_komposit);
-                    return Number.isFinite(v) ? v : 0;
-                });
-
-                chartKPI.data.datasets = [{
-                    label: 'Skor Komposit',
-                    data: skorArr,
-                    extra: karyawans.map(d => d.jumlah_penilaian),
-
-                    backgroundColor: karyawans.map((_, i) =>
-                        Object.values(CHART_COLORS).filter(v => typeof v === 'string')[i % 6]
-                    ),
-
-                    borderRadius: 6,
-                    borderSkipped: false
-                }];
-                chartKPI.update('none');
+                // Jangan return agar chart lain (trend) tetap bisa diupdate
             } else {
-                chartKPI.data.labels = ['Tidak ada KPI'];
-                chartKPI.data.datasets = [{
-                    label: 'No Data',
-                    data: [0],
-                    backgroundColor: 'rgba(0,0,0,0.05)',
-                    borderRadius: 6
-                }];
-                chartKPI.update('none');
+                const karyawans = Array.isArray(compositeRes.data) ? compositeRes.data : [];
+
+                if (karyawans.length > 0) {
+                    chartKPI.data.labels = karyawans.map(d => d.nama);
+                    const skorArr = karyawans.map(d => {
+                        const v = parseFloat(d.skor_komposit);
+                        return Number.isFinite(v) ? v : 0;
+                    });
+
+                    chartKPI.data.datasets = [{
+                        label: 'Skor Komposit',
+                        data: skorArr,
+                        extra: karyawans.map(d => d.jumlah_penilaian),
+
+                        backgroundColor: karyawans.map((_, i) =>
+                            Object.values(CHART_COLORS).filter(v => typeof v === 'string')[i % 6]
+                        ),
+
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }];
+                    chartKPI.update('none');
+                } else {
+                    chartKPI.data.labels = ['Tidak ada KPI'];
+                    chartKPI.data.datasets = [{
+                        label: 'No Data',
+                        data: [0],
+                        backgroundColor: 'rgba(0,0,0,0.05)',
+                        borderRadius: 6
+                    }];
+                    chartKPI.update('none');
+                }
             }
         }
 
         // Line Chart: Tren peningkatan nilai per karyawan (tren bulanan agregat)
         if (chartTrend && canViewTrend && monthlyTrendRes && monthlyTrendRes.data) {
+            // Logika filter: kalau belum ada filter date (dateFrom/dateTo kosong), TAMPILKAN kosong
+            const currentFilters = AppState.getState('dashboardFilters') || { dateFrom: '', dateTo: '' };
+            const dateFrom = currentFilters.dateFrom || '';
+            const dateTo = currentFilters.dateTo || '';
+            const hasFilterRange = Boolean(dateFrom && dateTo);
 
-
-            const normalized = (() => {
-                const d = monthlyTrendRes.data;
-
-                // Format ideal backend saat ini:
-                // { data: [{ bulan, jumlah, rata_rata }, ...] }
-                // tapi karena di response wrapper, kita pastikan bentuknya.
-                if (Array.isArray(d)) {
-                    return {
-                        labels: d.map(x => x.bulan),
-                        jumlah: d.map(x => x.jumlah),
-                        rata_rata: d.map(x => x.rata_rata)
-                    };
-                }
-
-                // Jika bentuknya { labels, jumlah, rata_rata }
-                if (d && Array.isArray(d.labels) && Array.isArray(d.jumlah) && Array.isArray(d.rata_rata)) {
-                    return { labels: d.labels, jumlah: d.jumlah, rata_rata: d.rata_rata };
-                }
-
-                // Jika bentuknya { data: [{...}] }
-                const anyData = d?.data;
-                if (Array.isArray(anyData) && anyData.length > 0) {
-                    return {
-                        labels: anyData.map(x => x.bulan),
-                        jumlah: anyData.map(x => x.jumlah),
-                        rata_rata: anyData.map(x => x.rata_rata)
-                    };
-                }
-
-                // fallback default
-                return { labels: [], jumlah: [], rata_rata: [] };
-            })();
-
-            const normLabels = normalized.labels;
-            const jumlahArr = normalized.jumlah;
-            const rataRataArr = normalized.rata_rata;
-
-                // Validasi: pastikan chartTrend tidak error dan data memang ada
-            if (Array.isArray(normLabels) && normLabels.length > 0) {
-
-
-
-
-                // Request audit: hanya tampilkan bulan dan rata-rata nilai.
-                const datasetAvg = {
-                    label: '',
-                    data: rataRataArr.map(v => parseFloat(v) || 0),
+            if (!hasFilterRange) {
+                chartTrend.data.labels = [];
+                chartTrend.data.datasets = [{
+                    label: 'Tren Nilai',
+                    data: [],
                     borderColor: CHART_COLORS.border.info,
                     backgroundColor: 'transparent',
                     fill: false,
@@ -428,39 +392,95 @@ export async function updateCharts() {
                     pointRadius: 4,
                     pointHoverRadius: 6,
                     borderWidth: 2
-                };
-
-                chartTrend.data.labels = normLabels;
-                chartTrend.data.datasets = [datasetAvg];
-
-
-                // Sesuaikan sumbu untuk nilai ganda (jumlah bisa >100). Paling aman: biarkan default.
-                // Format label bulan agar tampil seperti "Jan 2025" (bukan "2025-01")
-                chartTrend.data.labels = normLabels.map(formatBulanLabel);
-
-                chartTrend.update('none');
-            } else {
-                chartTrend.data.labels = ['Tidak ada data'];
-                chartTrend.data.datasets = [{
-                    label: 'No Data',
-                    data: [0],
-                    borderColor: 'rgba(0,0,0,0.2)',
-                    backgroundColor: 'rgba(0,0,0,0.05)',
-                    borderDash: [5, 5]
                 }];
                 chartTrend.update('none');
+            } else {
+                const normalized = (() => {
+                    const d = monthlyTrendRes.data;
+
+                    // Format ideal backend saat ini:
+                    // { data: [{ bulan, jumlah, rata_rata }, ...] }
+                    // tapi karena di response wrapper, kita pastikan bentuknya.
+                    if (Array.isArray(d)) {
+                        return {
+                            labels: d.map(x => x.bulan),
+                            jumlah: d.map(x => x.jumlah),
+                            rata_rata: d.map(x => x.rata_rata)
+                        };
+                    }
+
+                    // Jika bentuknya { labels, jumlah, rata_rata }
+                    if (d && Array.isArray(d.labels) && Array.isArray(d.jumlah) && Array.isArray(d.rata_rata)) {
+                        return { labels: d.labels, jumlah: d.jumlah, rata_rata: d.rata_rata };
+                    }
+
+                    // Jika bentuknya { data: [{...}] }
+                    const anyData = d?.data;
+                    if (Array.isArray(anyData) && anyData.length > 0) {
+                        return {
+                            labels: anyData.map(x => x.bulan),
+                            jumlah: anyData.map(x => x.jumlah),
+                            rata_rata: anyData.map(x => x.rata_rata)
+                        };
+                    }
+
+                    // fallback default
+                    return { labels: [], jumlah: [], rata_rata: [] };
+                })();
+
+                const normLabels = normalized.labels;
+                const jumlahArr = normalized.jumlah;
+                const rataRataArr = normalized.rata_rata;
+
+                    // Validasi: pastikan chartTrend tidak error dan data memang ada
+                if (Array.isArray(normLabels) && normLabels.length > 0) {
+
+
+
+
+                    // Request audit: hanya tampilkan bulan dan rata-rata nilai.
+                    const datasetAvg = {
+                        label: '',
+                        data: rataRataArr.map(v => parseFloat(v) || 0),
+                        borderColor: CHART_COLORS.border.info,
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0.4,
+                        pointBackgroundColor: CHART_COLORS.border.info,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 2
+                    };
+
+                    chartTrend.data.labels = normLabels;
+                    chartTrend.data.datasets = [datasetAvg];
+
+
+                    // Sesuaikan sumbu untuk nilai ganda (jumlah bisa >100). Paling aman: biarkan default.
+                    // Format label bulan agar tampil seperti "Jan 2025" (bukan "2025-01")
+                    chartTrend.data.labels = normLabels.map(formatBulanLabel);
+
+                    chartTrend.update('none');
+                } else {
+                    chartTrend.data.labels = ['Tidak ada data'];
+                    chartTrend.data.datasets = [{
+                        label: 'No Data',
+                        data: [0],
+                        borderColor: 'rgba(0,0,0,0.2)',
+                        backgroundColor: 'rgba(0,0,0,0.05)',
+                        borderDash: [5, 5]
+                    }];
+                    chartTrend.update('none');
+                }
             }
         }
 
-        // Doughnut Chart: distribusi
+        // Doughnut Chart: distribusi - hanya tampilkan jika ada filter range
         if (chartDistribusi && distribusiRes.data) {
-            const { labels, values } = distribusiRes.data;
-            const totalValues = values.reduce((a, b) => a + b, 0);
-
-            if (totalValues > 0) {
-                chartDistribusi.data.labels = labels;
+            if (!hasFilterRange) {
+                chartDistribusi.data.labels = [];
                 chartDistribusi.data.datasets = [{
-                    data: values,
+                    data: [],
                     backgroundColor: DISTRIBUSI_COLORS,
                     borderWidth: 2,
                     borderColor: '#fff',
@@ -468,18 +488,34 @@ export async function updateCharts() {
                 }];
                 chartDistribusi.update('none');
             } else {
-                chartDistribusi.data.labels = ['Tidak ada data'];
-                chartDistribusi.data.datasets = [{
-                    data: [1],
-                    backgroundColor: ['rgba(0,0,0,0.1)'],
-                    borderWidth: 1
-                }];
-                chartDistribusi.update('none');
+                const { labels, values } = distribusiRes.data;
+                const totalValues = values.reduce((a, b) => a + b, 0);
+
+                if (totalValues > 0) {
+                    chartDistribusi.data.labels = labels;
+                    chartDistribusi.data.datasets = [{
+                        data: values,
+                        backgroundColor: DISTRIBUSI_COLORS,
+                        borderWidth: 2,
+                        borderColor: '#fff',
+                        hoverOffset: 8
+                    }];
+                    chartDistribusi.update('none');
+                } else {
+                    chartDistribusi.data.labels = ['Tidak ada data'];
+                    chartDistribusi.data.datasets = [{
+                        data: [1],
+                        backgroundColor: ['rgba(0,0,0,0.1)'],
+                        borderWidth: 1
+                    }];
+                    chartDistribusi.update('none');
+                }
             }
         }
 
-        // Areas of improvement
-        if (areasRes && areasRes.data) renderAreasOfImprovement(areasRes.data);
+        // Areas of improvement - hanya tampilkan jika ada filter range
+        if (hasFilterRange && areasRes && areasRes.data) renderAreasOfImprovement(areasRes.data);
+        else if (!hasFilterRange) clearAreasOfImprovement();
     } catch (err) {
         console.error('[Dashboard] Error updating charts:', err.message, err);
         // hindari memblokir login flow: hanya alert jika dashboard sudah tampil
@@ -566,6 +602,34 @@ function renderAreasOfImprovement(areasData) {
     }
 }
 
+/**
+ * Hapus/kosongkan stats cards
+ */
+function clearStats() {
+    const set = (id) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '—';
+    };
+    set('totalKaryawan');
+    set('totalKPI');
+    set('totalPenilaian');
+    set('rataRataNilai');
+    set('rataRataNilai2');
+    set('nilaiTertinggi');
+    set('nilaiTerendah');
+}
+
+/**
+ * Hapus/kosongkan areas of improvement
+ */
+function clearAreasOfImprovement() {
+    const elKpi = document.getElementById('areaPerbaikanKpi');
+    const elKaryawan = document.getElementById('areaPerbaikanKaryawan');
+
+    if (elKpi) elKpi.textContent = '';
+    if (elKaryawan) elKaryawan.textContent = '';
+}
+
 // ── Filter Handlers ───────────────────────────────────────────────────────────
 /**
  * Apply dashboard filters and update all charts.
@@ -580,28 +644,16 @@ export function applyDashboardFilters() {
 
     console.log('[Dashboard] Applying filters:', { role, rawDateFrom, rawDateTo });
 
-    // Rule:
-    // - HR: boleh pilih rentang bulan kapan saja (map ke dateFrom/dateTo)
-    // - kaprodi: hanya boleh lihat tren skor komposit bulan ini
-    // - (dosen belum diminta, pakai default behaviour dari backend)
-    if (role === 'kaprodi') {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-
-        const monthStart = `${y}-${m}-01`;
-        const monthEndDate = new Date(y, now.getMonth() + 1, 0);
-        const monthEnd = `${y}-${m}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
-
-        AppState.setState('dashboardFilters', { dateFrom: monthStart, dateTo: monthEnd });
-        updateCharts();
-        return;
-    }
-
+    // Untuk semua role (HR, Kaprodi): harus pilih rentang tanggal sendiri
     const dateFrom = rawDateFrom;
     const dateTo   = rawDateTo;
 
-    if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
+    if (!dateFrom || !dateTo) {
+        alert('Silakan pilih tanggal mulai dan tanggal selesai!');
+        return;
+    }
+
+    if (new Date(dateFrom) > new Date(dateTo)) {
         alert('Tanggal mulai tidak boleh lebih besar dari tanggal selesai!');
         return;
     }
@@ -626,10 +678,9 @@ export function resetDashboardFilters() {
 }
 
 /**
- * Khusus HR: tombol untuk memuat ulang tren skor komposit per bulan
+ * Tombol untuk memuat ulang tren skor komposit per bulan
  * berdasarkan rentang tanggal yang dipilih.
- *
- * Untuk role kaprodi, fungsi ini tidak digunakan (bisa disembunyikan/diabaikan di UI).
+ * Berlaku untuk HR dan Kaprodi - keduanya harus pilih tanggal sendiri.
  */
 export function applyMonthlyTrendFilter() {
     const role = AppState.getState('currentUser')?.role || document.body.dataset.role;
@@ -645,27 +696,17 @@ export function applyMonthlyTrendFilter() {
     const dateFrom = dateFromEl?.value || '';
     const dateTo = dateToEl?.value || '';
 
-    if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
+    if (!dateFrom || !dateTo) {
+        alert('Silakan pilih tanggal mulai dan tanggal selesai!');
+        return;
+    }
+
+    if (new Date(dateFrom) > new Date(dateTo)) {
         alert('Tanggal mulai tidak boleh lebih besar dari tanggal selesai!');
         return;
     }
 
-    // Untuk role hr: pakai rentang yang dipilih.
-    // Untuk role kaprodi: sesuai requirement, grafik mengikuti tren bulanan bulan berjalan saja.
-    if (role === 'kaprodi') {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-
-        const monthStart = `${y}-${m}-01`;
-        const monthEndDate = new Date(y, now.getMonth() + 1, 0);
-        const monthEnd = `${y}-${m}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
-
-        AppState.setState('dashboardFilters', { dateFrom: monthStart, dateTo: monthEnd });
-    } else {
-        AppState.setState('dashboardFilters', { dateFrom, dateTo });
-    }
-
+    AppState.setState('dashboardFilters', { dateFrom, dateTo });
     updateCharts();
 }
 

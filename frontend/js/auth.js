@@ -67,9 +67,9 @@ export async function handleLogin(e) {
         btn.disabled = true;
         btn.textContent = 'Masuk...';
 
-        // Jika domain bukan @ac.id, anggap kredensial salah agar muncul alert "email salah"
+        // Jika domain bukan @sipeka.ac.id, anggap kredensial salah agar muncul alert "email salah"
         // (sesuai instruksi user).
-        if (!username.endsWith('@ac.id')) {
+        if (!username.endsWith('@sipeka.ac.id')) {
             throw new Error('email salah');
         }
 
@@ -101,7 +101,7 @@ export async function handleRegister(e) {
     const btn         = e.target.querySelector('button[type="submit"]');
 
     // Validasi email domain
-    if (!username.endsWith('@ac.id')) {
+    if (!username.endsWith('@sipeka.ac.id')) {
         // Pastikan error login/register tampil sebagai alert email salah (sesuai instruksi pengguna)
         // untuk setiap kasus domain email tidak valid.
         return showMsg('registerError', 'email salah');
@@ -198,12 +198,48 @@ export function showDashboard() {
 
         loadPenilaian();
         return;
-    } else {
-        // Untuk HR dan Kaprodi: dashboard tetap tampil (tidak menghapus dashboard).
+    }
+    // Untuk role Kaprodi: tampilkan dashboard dengan fitur filter visualisasi penuh.
+    else if (user.role === 'kaprodi') {
         showPage('dashboard');
         applyRoleUI(user.role);
 
-        // Tampilkan kembali menu navigasi dashboard.
+        // Tampilkan menu navigasi untuk Kaprodi
+        const btnOverview = document.getElementById('navOverview');
+        if (btnOverview) btnOverview.style.display = '';
+        const btnPenilaian = document.getElementById('navPenilaian');
+        if (btnPenilaian) btnPenilaian.style.display = '';
+
+        // Sembunyikan menu Karyawan dan KPI untuk Kaprodi
+        const btnKaryawan = document.getElementById('navKaryawan');
+        if (btnKaryawan) btnKaryawan.style.display = 'none';
+        const btnKPI = document.getElementById('navKPI');
+        if (btnKPI) btnKPI.style.display = 'none';
+
+        // Tampilkan filter visualisasi untuk Kaprodi (fitur utama)
+        const filterPanel = document.querySelector('.filter-panel');
+        if (filterPanel) filterPanel.style.display = '';
+
+        const btnApplyFilter = document.getElementById('btnApplyFilter');
+        const btnResetFilter = document.getElementById('btnResetFilter');
+        const btnApplyMonthlyTrend = document.getElementById('btnApplyMonthlyTrend');
+        if (btnApplyFilter) btnApplyFilter.disabled = false;
+        if (btnResetFilter) btnResetFilter.disabled = false;
+        if (btnApplyMonthlyTrend) btnApplyMonthlyTrend.disabled = false;
+
+        // Tampilkan charts grid untuk visualisasi data
+        const chartsGrid = document.querySelector('.charts-grid');
+        if (chartsGrid) chartsGrid.style.display = '';
+
+        loadAllData();
+        showSection('overview');
+    }
+    // Untuk role HR: tampilkan semua fitur dashboard
+    else {
+        showPage('dashboard');
+        applyRoleUI(user.role);
+
+        // Tampilkan semua menu navigasi dashboard untuk HR
         const btnOverview = document.getElementById('navOverview');
         if (btnOverview) btnOverview.style.display = '';
         const btnKaryawan = document.getElementById('navKaryawan');
@@ -213,16 +249,16 @@ export function showDashboard() {
         const btnPenilaian = document.getElementById('navPenilaian');
         if (btnPenilaian) btnPenilaian.style.display = '';
 
-        // Untuk HR dan Kaprodi: TIDAK menghapus filter visualisasi.
-        // Biarkan tombol filter (termasuk tren bulanan) muncul sesuai requirement.
+        // Tampilkan filter visualisasi untuk HR
         const filterPanel = document.querySelector('.filter-panel');
         if (filterPanel) filterPanel.style.display = '';
 
         const btnApplyFilter = document.getElementById('btnApplyFilter');
         const btnResetFilter = document.getElementById('btnResetFilter');
+        const btnApplyMonthlyTrend = document.getElementById('btnApplyMonthlyTrend');
         if (btnApplyFilter) btnApplyFilter.disabled = false;
         if (btnResetFilter) btnResetFilter.disabled = false;
-
+        if (btnApplyMonthlyTrend) btnApplyMonthlyTrend.disabled = false;
 
         loadAllData();
         showSection('overview');
