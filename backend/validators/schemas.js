@@ -16,7 +16,7 @@ const passwordPolicy = Joi.string()
 
 // ── Auth Schemas ─────────────────────────────────────────────────────────────
 const loginSchema = Joi.object({
-    username: Joi.string().email().pattern(/@ac\.id$/).required().messages({
+    username: Joi.string().email().pattern(/@sipeka\.ac\.id$/).required().messages({
         'string.email': 'email salah',
         'string.pattern.base': 'email salah',
         'any.required': 'Email wajib diisi'
@@ -27,7 +27,7 @@ const loginSchema = Joi.object({
 });
 
 const registerSchema = Joi.object({
-    username: Joi.string().email().pattern(/@ac\.id$/).required().messages({
+    username: Joi.string().email().pattern(/@sipeka\.ac\.id$/).required().messages({
         'string.email': 'email salah',
         'string.pattern.base': 'email salah',
         'any.required': 'Email wajib diisi'
