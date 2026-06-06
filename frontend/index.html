@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="SIPEKA — Sistem Evaluasi Kinerja: platform digital untuk monitoring dan penilaian kinerja karyawan secara terstruktur.">
+    <title>Sistem Evaluasi Kinerja</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- Login -->
+    <div id="loginPage" class="page active">
+        <div class="auth-container">
+            <div class="auth-box">
+                <div class="auth-logo">
+                    <h1>Sistem Evaluasi Kinerja</h1>
+                </div>
+                <form id="loginForm" novalidate>
+                    <div class="form-group">
+                        <label for="username">Email</label>
+                        <input type="email" id="username" name="username" placeholder="Masukkan email @ac.id"
+                            autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="password" name="password" placeholder="Masukkan password"
+                                autocomplete="current-password" required>
+                            <button type="button" class="toggle-password" id="togglePasswordLogin" aria-label="Toggle password visibility">◉</button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-auth" id="btnLogin">Masuk</button>
+                    <div id="loginError" class="error-message" role="alert"></div>
+                </form>
+                <div class="auth-footer">
+                    <p>Belum punya akun?
+                        <a href="#" id="linkToRegister" onclick="showRegisterPage(); return false;">Daftar di sini</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Register -->
+    <div id="registerPage" class="page">
+        <div class="auth-container">
+            <div class="auth-box">
+                <div class="auth-logo">
+                    <h1>Sistem Evaluasi Kinerja</h1>
+                    <p>Buat Akun Baru</p>
+                </div>
+                <form id="registerForm" novalidate>
+                    <div class="form-group">
+                        <label for="regUsername">Email</label>
+                        <input type="email" id="regUsername" name="username" placeholder="Masukkan email @ac.id"
+                            autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regPassword">Password</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="regPassword" name="password" placeholder="Min 8 karakter"
+                                autocomplete="new-password" required>
+                            <button type="button" class="toggle-password" id="togglePasswordRegister" aria-label="Toggle password visibility">◉</button>
+                        </div>
+                        <div id="passwordStrength" class="password-strength" aria-live="polite"></div>
+                        <small class="password-hint">
+                            Harus mengandung: huruf besar, angka, dan karakter spesial
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="regConfirmPassword">Konfirmasi Password</label>
+                        <input type="password" id="regConfirmPassword" name="confirmPassword"
+                            placeholder="Ulangi password" autocomplete="new-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regRole">Role</label>
+                        <select id="regRole" name="role" required>
+                            <option value="">Pilih Role</option>
+                            <option value="hr">HR</option>
+                            <option value="kaprodi">Kaprodi</option>
+                            <option value="dosen">Dosen</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="regKaryawanId">ID Karyawan <span class="optional">(Opsional)</span></label>
+                        <input type="number" id="regKaryawanId" name="id_karyawan"
+                            placeholder="Kosongkan jika tidak ada" min="1">
+                    </div>
+                    <button type="submit" class="btn-auth" id="btnRegister">Daftar Sekarang</button>
+                    <div id="registerError" class="error-message" role="alert"></div>
+                    <div id="registerSuccess" class="success-message" role="status"></div>
+                </form>
+                <div class="auth-footer">
+                    <p>Sudah punya akun?
+                        <a href="#" id="linkToLogin" onclick="showLoginPage(); return false;">Login di sini</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Dashboard -->
+    <div id="dashboardPage" class="page">
+
+        <!-- Navbar -->
+        <nav class="navbar" role="navigation" aria-label="Navigasi Utama">
+            <div class="navbar-brand">
+                <span>Sistem Evaluasi Kinerja</span>
+            </div>
+            <button class="navbar-toggle" id="navToggle" aria-label="Toggle menu"
+                onclick="document.querySelector('.navbar-menu').classList.toggle('open')">
+                ☰
+            </button>
+            <div class="navbar-menu">
+                <button class="nav-link active" id="navOverview" onclick="showSection('overview')">Dashboard</button>
+                <button class="nav-link" id="navKaryawan" onclick="showSection('karyawan')">Karyawan</button>
+                <button class="nav-link" id="navKPI" onclick="showSection('kpi')">KPI</button>
+                <button class="nav-link" id="navPenilaian" onclick="showSection('penilaian')">Penilaian</button>
+                <div class="navbar-user">
+                    <span class="user-badge">
+                        <strong id="userDisplay">—</strong>
+                        <span class="role-tag" id="roleDisplay">—</span>
+                    </span>
+                    <button class="btn-logout" id="btnLogout" onclick="logout()">Keluar</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+
+            <!--  OVERVIEW SECTION -->
+            <section id="overviewSection" class="section active" aria-label="Dashboard Overview">
+
+                <div class="section-title">
+                    <h2>Dashboard Ringkasan</h2>
+                    <p class="section-subtitle">Pantau performa karyawan secara real-time</p>
+                </div>
+
+                <!-- Stat Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card stat-card--blue">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="totalKaryawan">0</div>
+                            <div class="stat-label">Total Karyawan</div>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-card--purple">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="totalKPI">0</div>
+                            <div class="stat-label">Total KPI</div>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-card--green">
+                        <div class="stat-icon">📋</div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="totalPenilaian">0</div>
+                            <div class="stat-label">Total Penilaian</div>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-card--orange">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="rataRataNilai">—</div>
+                            <div class="stat-label">Rata-rata Nilai</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Panel -->
+                <div class="filter-panel">
+                    <h3 class="filter-title">🔍 Filter Visualisasi</h3>
+
+                    <div class="filter-controls">
+                        <div class="filter-group">
+                            <label for="filterDateFrom">Dari Tanggal</label>
+                            <input type="date" id="filterDateFrom">
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="filterDateTo">Sampai Tanggal</label>
+                            <input type="date" id="filterDateTo">
+                        </div>
+
+                        <div class="filter-actions">
+                            <button class="btn-filter-apply" id="btnApplyFilter"
+                                onclick="applyDashboardFilters()">Terapkan</button>
+
+                            <button class="btn-filter-apply" id="btnApplyMonthlyTrend"
+                                onclick="applyMonthlyTrendFilter()" title="Lihat tren peningkatan nilai per bulan sesuai role">Lihat Tren (Bulanan)</button>
+
+                            <button class="btn-filter-reset" id="btnResetFilter"
+                                onclick="resetDashboardFilters()">Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Loading Overlay -->
+                <div id="chartsLoading" class="charts-loading" style="display:none;">
+                    <div class="spinner"></div>
+                    <span>Memuat data...</span>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    <!-- Bar Chart: Nilai per KPI -->
+                    <div class="chart-card chart-card--wide">
+                        <div class="chart-wrapper">
+                            <canvas id="chartKPI" aria-label="Bar Chart Rata-rata Nilai per KPI" role="img"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Line Chart: Trend Bulanan -->
+                    <div class="chart-card chart-card--wide" id="chartTrendCard">
+                        <div class="chart-wrapper">
+                            <canvas id="chartTrend" aria-label="Line Chart Tren Penilaian Bulanan" role="img"></canvas>
+                        </div>
+                    </div>
+
+
+
+
+                    <!-- Doughnut Chart: Distribusi Nilai -->
+                    <div class="chart-card chart-card--half">
+                        <div class="chart-wrapper">
+                            <canvas id="chartDistribusi" aria-label="Doughnut Chart Distribusi Nilai"
+                                role="img"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Nilai Ekstrem -->
+                    <div class="chart-card chart-card--half stat-panel">
+                        <h3>Statistik Nilai</h3>
+                        <div class="stat-row">
+                            <span>Nilai Tertinggi</span>
+                            <span class="stat-val text-success" id="nilaiTertinggi">—</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Nilai Terendah</span>
+                            <span class="stat-val text-danger" id="nilaiTerendah">—</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Rata-rata Global</span>
+                            <span class="stat-val text-primary" id="rataRataNilai2">—</span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- AREA PERBAIKAN -->
+                <div class="area-improvement-grid" style="margin-top: 18px;">
+                    <div class="chart-card chart-card--half stat-panel">
+                        <h3>Area Perbaikan (KPI Terendah)</h3>
+                        <div id="areaPerbaikanKpi">Memuat...</div>
+                    </div>
+
+                    <div class="chart-card chart-card--half stat-panel">
+                        <h3>Area Perbaikan (Karyawan Skor Terendah)</h3>
+                        <div id="areaPerbaikanKaryawan">Memuat...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!--  KARYAWAN SECTION  -->
+            <section id="karyawanSection" class="section" aria-label="Data Karyawan">
+                <div class="section-header">
+                    <div>
+                        <h2>Data Karyawan</h2>
+                        <p class="section-subtitle">Kelola data karyawan dan jabatan</p>
+                    </div>
+                    <button class="btn-primary" id="btnTambahKaryawan" onclick="showAddKaryawanForm()">+ Tambah
+                        Karyawan</button>
+                </div>
+
+                <div id="karyawanForm" class="form-container" style="display:none;">
+                    <h3 id="formKaryawanTitle">Tambah Karyawan</h3>
+                    <form id="karyawanFormElement" novalidate>
+                        <input type="hidden" id="karyawanId">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="karyawanNama">Nama Lengkap</label>
+                                <input type="text" id="karyawanNama" placeholder="Nama karyawan" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="karyawanJabatan">Jabatan</label>
+                                <input type="text" id="karyawanJabatan" placeholder="Jabatan / posisi" required>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary" id="btnSimpanKaryawan">Simpan</button>
+                            <button type="button" class="btn-secondary" onclick="cancelKaryawanForm()">Batal</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="karyawanTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama</th>
+                                <th>Jabatan</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!--  KPI SECTION  -->
+            <section id="kpiSection" class="section" aria-label="Data KPI">
+                <div class="section-header">
+                    <div>
+                        <h2>Data KPI</h2>
+                        <p class="section-subtitle">Key Performance Indicators</p>
+                    </div>
+                    <button class="btn-primary" id="btnTambahKPI" onclick="showAddKPIForm()">+ Tambah KPI</button>
+                </div>
+
+                <div id="kpiForm" class="form-container" style="display:none;">
+                    <h3>Form KPI</h3>
+                    <form id="kpiFormElement" novalidate>
+                        <input type="hidden" id="kpiId">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="kpiNama">Nama KPI</label>
+                                <input type="text" id="kpiNama" placeholder="Nama indikator" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="kpiBobot">Bobot (%)</label>
+                                <input type="number" id="kpiBobot" step="0.01" min="0" max="100" placeholder="0 - 100"
+                                    required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="kpiDeskripsi">Deskripsi <span class="optional">(Opsional)</span></label>
+                            <textarea id="kpiDeskripsi" rows="2" placeholder="Penjelasan singkat KPI ini"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary" id="btnSimpanKPI">Simpan</button>
+                            <button type="button" class="btn-secondary" onclick="cancelKPIForm()">Batal</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="kpiTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama KPI</th>
+                                <th>Deskripsi</th>
+                                <th>Bobot</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!--  PENILAIAN SECTION  -->
+            <section id="penilaianSection" class="section" aria-label="Data Penilaian">
+                <div class="section-header">
+                    <div>
+                        <h2>Data Penilaian</h2>
+                        <p class="section-subtitle">Rekap hasil evaluasi kinerja</p>
+                    </div>
+                    <button class="btn-primary" id="btnTambahPenilaian" onclick="showAddPenilaianForm()">+ Tambah
+                        Penilaian</button>
+                </div>
+
+                <div id="penilaianForm" class="form-container" style="display:none;">
+                    <h3>Form Penilaian</h3>
+                    <form id="penilaianFormElement" novalidate>
+                        <input type="hidden" id="penilaianId">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="penilaianKaryawan">Karyawan</label>
+                                <select id="penilaianKaryawan" required>
+                                    <option value="">-- Pilih --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="penilaianKPI">KPI</label>
+                                <select id="penilaianKPI" required>
+                                    <option value="">-- Pilih --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="penilaianNilai">Nilai (0 - 100)</label>
+                                <input type="number" id="penilaianNilai" step="0.01" min="0" max="100"
+                                    placeholder="Masukkan nilai" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="penilaianTanggal">Tanggal Penilaian</label>
+                                <input type="date" id="penilaianTanggal" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="penilaianCatatan">Catatan <span class="optional">(Opsional)</span></label>
+                            <textarea id="penilaianCatatan" rows="2" placeholder="Catatan tambahan"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary" id="btnSimpanPenilaian">Simpan</button>
+                            <button type="button" class="btn-secondary" onclick="cancelPenilaianForm()">Batal</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="penilaianTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Karyawan</th>
+                                <th>KPI</th>
+                                <th>Nilai</th>
+                                <th>Tanggal</th>
+                                <th>Catatan</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div><!-- /.container -->
+    </div><!-- /#dashboardPage -->
+
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>
