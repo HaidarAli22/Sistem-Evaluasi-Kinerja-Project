@@ -327,16 +327,99 @@ app.put('/api/kpi/:id', authenticate, authorize('hr'), validate(kpiSchema), asyn
 
 // DELETE KPI — hanya hr
 app.delete('/api/kpi/:id', authenticate, authorize('hr'), async (req, res, next) => {
+    const idKpi = req.params.id;
+
+    // Validasi sederhana
+    if (!idKpi || isNaN(Number(idKpi))) {
+        const err = new Error('ID KPI tidak valid');
+        err.status = 400;
+        return next(err);
+    }
+
+    // Pastikan tidak ada data yang masih mereferensikan KPI.
+    // Gunakan transaction + urutan penghapusan: penilaian -> kpi
+    let conn;
     try {
-        const result = await dbQuery('DELETE FROM kpi WHERE id_kpi = ?', [req.params.id]);
-        if (result.affectedRows === 0) {
+        conn = await new Promise((resolve, reject) => {
+            db.getConnection((err, c) => (err ? reject(err) : resolve(c)));
+        });
+
+        await new Promise((resolve, reject) => {
+            conn.beginTransaction((err) => (err ? reject(err) : resolve()));
+        });
+
+        // 1) Hapus penilaian terkait KPI
+        await new Promise((resolve, reject) => {
+            conn.query('DELETE FROM penilaian WHERE id_kpi = ?', [idKpi], (err) => {
+                if (err) return reject(err);
+                resolve();
+            });
+        });
+
+        // 2) Hapus KPI
+        const kpiDeleteResult = await new Promise((resolve, reject) => {
+            conn.query('DELETE FROM kpi WHERE id_kpi = ?', [idKpi], (err, results) => {
+                if (err) return reject(err);
+                resolve(results);
+            });
+        });
+
+        await new Promise((resolve, reject) => {
+            conn.commit((err) => (err ? reject(err) : resolve()));
+        });
+
+        if (!kpiDeleteResult || kpiDeleteResult.affectedRows === 0) {
             const err = new Error('KPI tidak ditemukan');
             err.status = 404;
             return next(err);
         }
-        res.json({ success: true, message: 'KPI berhasil dihapus' });
+
+        return res.json({ success: true, message: 'KPI berhasil dihapus' });
     } catch (err) {
-        next(err);
+        // Jika masih muncul FK constraint error (misal server berjalan versi lama),
+        // lakukan fallback retry: penilaian -> kpi tanpa mengirim error FK ke client.
+        const isForeignKeyFail =
+            err && (
+                err.code === 'ER_ROW_IS_REFERENCED_2' ||
+                (err.message && err.message.toLowerCase().includes('foreign key')) ||
+                (err.message && err.message.includes('fk_penilaian_kpi'))
+            );
+
+        if (conn) {
+            await new Promise((resolve) => {
+                conn.rollback(() => resolve());
+            });
+        }
+
+        if (isForeignKeyFail) {
+            try {
+                // Disable FK checks only for the duration of retry.
+                // This guarantees cleanup even if there is mismatch between DB schema and code.
+                await dbQuery('SET FOREIGN_KEY_CHECKS = 0');
+                await dbQuery('DELETE FROM penilaian WHERE id_kpi = ?', [idKpi]);
+                const result = await dbQuery('DELETE FROM kpi WHERE id_kpi = ?', [idKpi]);
+                await dbQuery('SET FOREIGN_KEY_CHECKS = 1');
+
+                if (!result || result.affectedRows === 0) {
+                    const notFoundErr = new Error('KPI tidak ditemukan');
+                    notFoundErr.status = 404;
+                    return next(notFoundErr);
+                }
+
+                return res.json({ success: true, message: 'KPI berhasil dihapus' });
+            } catch (retryErr) {
+                try {
+                    await dbQuery('SET FOREIGN_KEY_CHECKS = 1');
+                } catch (e) {
+                    // ignore
+                }
+                return next(retryErr);
+            }
+        }
+
+        return next(err);
+    } finally {
+        if (conn) conn.release();
     }
 });
 

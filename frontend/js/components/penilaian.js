@@ -43,7 +43,19 @@ export function renderPenilaianTable() {
 
         items
             .slice()
-            .sort((x, y) => (x.nama_kpi || '').localeCompare(y.nama_kpi || ''))
+            // Pastikan urutan deterministik dan memasukkan tanggal_penilaian.
+            // Karena tabel ditampilkan "per KPI", namun di database bisa ada lebih dari 1 baris per (karyawan, KPI)
+            // (mis. per bulan). Dengan ini, baris yang baru saja di-edit akan terlihat berubah.
+            .sort((x, y) => {
+                const nkx = x.nama_kpi || '';
+                const nky = y.nama_kpi || '';
+                const byKPI = nkx.localeCompare(nky);
+                if (byKPI !== 0) return byKPI;
+
+                const tx = x.tanggal_penilaian ? new Date(x.tanggal_penilaian).getTime() : -Infinity;
+                const ty = y.tanggal_penilaian ? new Date(y.tanggal_penilaian).getTime() : -Infinity;
+                return ty - tx; // DESC (terbaru dulu)
+            })
             .forEach((p, idx) => {
                 rowNum++;
                 const namaKPI = p.nama_kpi ||
